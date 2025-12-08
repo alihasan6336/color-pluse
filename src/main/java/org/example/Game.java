@@ -21,6 +21,7 @@ public class Game implements GLEventListener {
     private PlayerBall playerBall;
     private List<Ring> rings;
     private List<ColorChanger> colorChangers;
+    private BackgroundStars backgroundStars;
 
     // Game state
     private int score;
@@ -30,6 +31,13 @@ public class Game implements GLEventListener {
     // Rendering
     private final GLCanvas canvas;
 
+    // Camera/World bounds for background
+    private float worldMinX = -10f;
+    private float worldMaxX = 10f;
+    private float worldMinY = -20f;
+    private float worldMaxY = 20f;
+    private float cameraOffsetY = 0f;
+
     public Game(GLCanvas canvas) {
         this.canvas = canvas;
     }
@@ -37,8 +45,12 @@ public class Game implements GLEventListener {
     @Override
     public void init(GLAutoDrawable drawable) {
         GL2 gl = drawable.getGL().getGL2();
-        gl.glClearColor(0.1f, 0.1f, 0.1f, 1.0f); // Dark background
-        setupOrthographicProjection(gl, drawable.getSurfaceWidth(), drawable.getSurfaceHeight());
+        // Dark space background (near black with slight blue tint)
+        gl.glClearColor(0.02f, 0.03f, 0.08f, 1.0f);
+
+        // Initialize background stars
+        backgroundStars = new BackgroundStars(worldMinX, worldMaxX, worldMinY, worldMaxY);
+
         resetGame();
         setupKeyListeners();
     }
@@ -57,6 +69,7 @@ public class Game implements GLEventListener {
         colorChangers = new ArrayList<>();
         score = 0;
         isGameOver = false;
+        cameraOffsetY = 0f; // Reset camera offset
         spawnInitialRings();
     }
 
@@ -131,10 +144,16 @@ public class Game implements GLEventListener {
         playerBall.applyGravity(GRAVITY);
         playerBall.update();
 
+        // Update background stars
+        if (backgroundStars != null) {
+            backgroundStars.update(0); // Stars fall on their own, not affected by camera
+        }
+
         // Move camera (world) down to follow the ball
         if (playerBall.getY() > 0) {
             float dy = playerBall.getY();
             playerBall.setY(0);
+            cameraOffsetY += dy; // Track camera offset for background
             for (Ring ring : rings) {
                 ring.setY(ring.getY() - dy);
             }
@@ -192,6 +211,12 @@ public class Game implements GLEventListener {
     }
 
     private void render(GL2 gl) {
+        // Render background stars first (behind everything)
+        if (backgroundStars != null) {
+            backgroundStars.draw(gl);
+        }
+
+        // Render game objects
         playerBall.draw(gl);
         rings.forEach(ring -> ring.draw(gl));
         colorChangers.forEach(changer -> changer.draw(gl));
@@ -208,6 +233,13 @@ public class Game implements GLEventListener {
         GL2 gl = drawable.getGL().getGL2();
         gl.glViewport(0, 0, width, height);
         setupOrthographicProjection(gl, width, height);
+
+        // Update world bounds for background stars
+        worldMaxY = 10 * (float) height / width;
+        worldMinY = -worldMaxY;
+        if (backgroundStars != null) {
+            backgroundStars.updateBounds(worldMinX, worldMaxX, worldMinY, worldMaxY);
+        }
     }
 }
 
