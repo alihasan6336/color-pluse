@@ -28,6 +28,10 @@ public class Game implements GLEventListener {
     private boolean isGameOver;
     private final Random random = new Random();
 
+    // UI and High Score
+    private ScoreUI scoreUI;
+    private HighScoreManager highScoreManager;
+
     // Rendering
     private final GLCanvas canvas;
 
@@ -51,6 +55,10 @@ public class Game implements GLEventListener {
         // Initialize background stars
         backgroundStars = new BackgroundStars(worldMinX, worldMaxX, worldMinY, worldMaxY);
 
+        // Initialize UI and high score manager
+        scoreUI = new ScoreUI();
+        highScoreManager = new HighScoreManager();
+
         resetGame();
         setupKeyListeners();
     }
@@ -70,6 +78,12 @@ public class Game implements GLEventListener {
         score = 0;
         isGameOver = false;
         cameraOffsetY = 0f; // Reset camera offset
+
+        // Reset UI fade animation
+        if (scoreUI != null) {
+            scoreUI.resetFade();
+        }
+
         spawnInitialRings();
     }
 
@@ -126,7 +140,11 @@ public class Game implements GLEventListener {
     }
 
     @Override
-    public void dispose(GLAutoDrawable drawable) {}
+    public void dispose(GLAutoDrawable drawable) {
+        if (scoreUI != null) {
+            scoreUI.dispose();
+        }
+    }
 
     @Override
     public void display(GLAutoDrawable drawable) {
@@ -147,6 +165,11 @@ public class Game implements GLEventListener {
         // Update background stars
         if (backgroundStars != null) {
             backgroundStars.update(0); // Stars fall on their own, not affected by camera
+        }
+
+        // Update UI fade animation
+        if (scoreUI != null) {
+            scoreUI.update();
         }
 
         // Move camera (world) down to follow the ball
@@ -187,6 +210,10 @@ public class Game implements GLEventListener {
                 int segment = ring.getSegmentAtAngle(playerBall.getX(), playerBall.getY());
                 if (segment != playerBall.getColorIndex()) {
                     isGameOver = true;
+                    // Update high score when game ends
+                    if (highScoreManager != null) {
+                        highScoreManager.updateHighScore(score);
+                    }
                     return;
                 } else if (!ring.isPassed()) {
                     score++;
@@ -207,6 +234,10 @@ public class Game implements GLEventListener {
         // Out of bounds
         if (playerBall.getY() < -12) {
             isGameOver = true;
+            // Update high score when game ends
+            if (highScoreManager != null) {
+                highScoreManager.updateHighScore(score);
+            }
         }
     }
 
@@ -221,10 +252,14 @@ public class Game implements GLEventListener {
         rings.forEach(ring -> ring.draw(gl));
         colorChangers.forEach(changer -> changer.draw(gl));
 
-        if (isGameOver) {
-            // Simple "Game Over" text would require a text renderer, which is complex.
-            // For now, we just freeze the screen and wait for space to restart.
-            // A title change could indicate status.
+        // Render score UI overlay (always on top)
+        if (scoreUI != null && highScoreManager != null) {
+            scoreUI.draw(gl, score, highScoreManager.getHighScore());
+
+            // Draw game over screen if game ended
+            if (isGameOver) {
+                scoreUI.drawGameOver(gl);
+            }
         }
     }
 
@@ -239,6 +274,11 @@ public class Game implements GLEventListener {
         worldMinY = -worldMaxY;
         if (backgroundStars != null) {
             backgroundStars.updateBounds(worldMinX, worldMaxX, worldMinY, worldMaxY);
+        }
+
+        // Update UI dimensions
+        if (scoreUI != null) {
+            scoreUI.updateDimensions(width, height);
         }
     }
 }
