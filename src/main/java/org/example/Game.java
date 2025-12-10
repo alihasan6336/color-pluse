@@ -199,7 +199,7 @@ public class Game implements GLEventListener {
         // Color changer collision
         colorChangers.forEach(changer -> {
             if (changer.isColliding(playerBall)) {
-                playerBall.changeColor();
+                playerBall.setColor(changer.getColorIndex());
                 changer.setY(-20); // "Remove" it
             }
         });

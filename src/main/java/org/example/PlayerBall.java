@@ -50,6 +50,10 @@ public class PlayerBall {
         this.colorIndex = newColorIndex;
     }
 
+    public void setColor(int index) {
+        this.colorIndex = index;
+    }
+
     private void drawCircle(GL2 gl, float cx, float cy, float r, int numSegments) {
         gl.glBegin(GL2.GL_TRIANGLE_FAN);
         gl.glVertex2f(cx, cy); // center of circle

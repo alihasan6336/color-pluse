@@ -45,5 +45,6 @@ public class ColorChanger {
     // Getters and Setters
     public float getY() { return y; }
     public void setY(float y) { this.y = y; }
+    public int getColorIndex() { return colorIndex; }
 }
 
