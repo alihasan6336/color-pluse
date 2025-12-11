@@ -82,7 +82,7 @@ Camera shifts upward automatically to create infinite level generation.
 Game resets dynamically without recreating the window.
 ```
 
-##📜 License
+📜 License
 
 MIT License.
 Feel free to modify, extend, or contribute.
