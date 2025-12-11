@@ -31,29 +31,26 @@ public class StartGame {
         mainFrame.setLocationRelativeTo(null);
         mainFrame.setResizable(true);
 
-        // Create card layout for screen transitions
+        // Card layout
         cardLayout = new CardLayout();
         cardPanel = new JPanel(cardLayout);
 
-        // Add screens
+        // Screens
         cardPanel.add(createStartScreen(), "START");
         cardPanel.add(createGameScreen(), "GAME");
 
         mainFrame.add(cardPanel);
         mainFrame.setVisible(true);
 
-        // Create HowToPlay screen after game instance is created
-        howToPlayScreen = new HowToPlay(cardLayout, cardPanel, StartGame::launchGame);
+        // Create HowToPlay (uses callbacks)
+        howToPlayScreen = new HowToPlay(cardLayout, cardPanel, () -> launchGame(false));
         cardPanel.add(howToPlayScreen.getPanel(), "HOW_TO_PLAY");
 
-        // Create EndGame screen after game instance is created
-        endGameScreen = new EndGame(cardLayout, cardPanel, gameInstance);
-        cardPanel.add(endGameScreen.getPanel(), "END_GAME");
-
+        // EndGame will be created dynamically when launching game (so it shows correct score)
         // Show start screen first
         cardLayout.show(cardPanel, "START");
 
-        // Start animation timer for background effects
+        // Background animation timer for nice UI effects
         javax.swing.Timer animationTimer = new javax.swing.Timer(50, e -> {
             cardPanel.repaint();
         });
@@ -64,13 +61,11 @@ public class StartGame {
         JPanel panel = new BackgroundPanel();
         panel.setLayout(new BorderLayout(0, 0));
 
-        // Main container with centered content
         JPanel mainContainer = new JPanel();
         mainContainer.setOpaque(false);
         mainContainer.setLayout(new BoxLayout(mainContainer, BoxLayout.Y_AXIS));
         mainContainer.setBorder(BorderFactory.createEmptyBorder(40, 30, 40, 30));
 
-        // Title
         JLabel titleLabel = new JLabel("COLOR SWITCH");
         titleLabel.setFont(new Font("Arial", Font.BOLD, 48));
         titleLabel.setForeground(new Color(0x00FF00));
@@ -79,7 +74,6 @@ public class StartGame {
         titleLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
         titleLabel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 60));
 
-        // Subtitle
         JLabel subtitleLabel = new JLabel("Master the Colors");
         subtitleLabel.setFont(new Font("Arial", Font.ITALIC, 16));
         subtitleLabel.setForeground(new Color(0xFFFF00));
@@ -88,38 +82,44 @@ public class StartGame {
         subtitleLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
         subtitleLabel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 30));
 
-        // Add title and subtitle
         mainContainer.add(titleLabel);
         mainContainer.add(Box.createVerticalStrut(8));
         mainContainer.add(subtitleLabel);
         mainContainer.add(Box.createVerticalGlue());
 
-        // Button panel - Three buttons only
         JPanel buttonPanel = new JPanel();
         buttonPanel.setOpaque(false);
         buttonPanel.setLayout(new BoxLayout(buttonPanel, BoxLayout.Y_AXIS));
         buttonPanel.setAlignmentX(Component.CENTER_ALIGNMENT);
         buttonPanel.setMaximumSize(new Dimension(250, 300));
 
-        // PLAY button - goes directly to game
-        JButton playButton = createEnhancedButton("PLAY", new Color(0x00FF00), Color.BLACK, 20);
+        // SINGLEPLAYER
+        JButton playButton = createEnhancedButton("PLAY (Singleplayer)", new Color(0x00FF00), Color.BLACK, 20);
         playButton.setMaximumSize(new Dimension(250, 50));
         playButton.setAlignmentX(Component.CENTER_ALIGNMENT);
-        playButton.addActionListener(e -> launchGame());
+        playButton.addActionListener(e -> launchGame(false));
 
-        // HOW TO PLAY button
+        // MULTIPLAYER
+        JButton multiButton = createEnhancedButton("MULTIPLAYER (Split)", new Color(0x00CCFF), Color.BLACK, 16);
+        multiButton.setMaximumSize(new Dimension(250, 50));
+        multiButton.setAlignmentX(Component.CENTER_ALIGNMENT);
+        multiButton.addActionListener(e -> launchGame(true));
+
+        // HOW TO PLAY
         JButton howToPlayButton = createEnhancedButton("HOW TO PLAY", new Color(0x00CCFF), Color.BLACK, 16);
         howToPlayButton.setMaximumSize(new Dimension(250, 50));
         howToPlayButton.setAlignmentX(Component.CENTER_ALIGNMENT);
         howToPlayButton.addActionListener(e -> cardLayout.show(cardPanel, "HOW_TO_PLAY"));
 
-        // EXIT button
+        // EXIT
         JButton exitButton = createEnhancedButton("EXIT", new Color(0xFF3333), Color.WHITE, 16);
         exitButton.setMaximumSize(new Dimension(250, 50));
         exitButton.setAlignmentX(Component.CENTER_ALIGNMENT);
         exitButton.addActionListener(e -> System.exit(0));
 
         buttonPanel.add(playButton);
+        buttonPanel.add(Box.createVerticalStrut(20));
+        buttonPanel.add(multiButton);
         buttonPanel.add(Box.createVerticalStrut(20));
         buttonPanel.add(howToPlayButton);
         buttonPanel.add(Box.createVerticalStrut(20));
@@ -129,7 +129,6 @@ public class StartGame {
         mainContainer.add(Box.createVerticalGlue());
 
         panel.add(mainContainer, BorderLayout.CENTER);
-
         return panel;
     }
 
@@ -138,39 +137,28 @@ public class StartGame {
         panel.setBackground(new Color(0x1E1E1E));
         panel.setFocusable(true);
 
-        // Initialize OpenGL
+        // Initialize OpenGL GLJPanel (we reuse this panel for single & multiplayer)
         GLProfile.initSingleton();
         GLProfile glProfile = GLProfile.get(GLProfile.GL2);
         GLCapabilities caps = new GLCapabilities(glProfile);
         caps.setDoubleBuffered(true);
         caps.setHardwareAccelerated(true);
 
-        // Create GLJPanel (Swing-compatible OpenGL panel)
         glPanel = new GLJPanel(caps);
-        glPanel.setPreferredSize(new Dimension(400, 800));
+        glPanel.setPreferredSize(new Dimension(800, 800));
 
-        // Create game instance with a dummy drawable for initialization
-        gameInstance = new Game(null);
+        // We will add the Game GLEventListener dynamically in launchGame(...)
 
-        // Set listener to handle game over
-        gameInstance.setGameStateListener(() -> {
-            // Show end game screen with final score
-            SwingUtilities.invokeLater(() -> {
-                cardLayout.show(cardPanel, "END_GAME");
-            });
-        });
-
-        // Add game as GL event listener
-        glPanel.addGLEventListener(gameInstance);
-
-        // Add keyboard listener for game controls
+        // Add keyboard listener that forwards keys to the active gameInstance
         glPanel.addKeyListener(new KeyListener() {
             @Override
             public void keyTyped(KeyEvent e) {}
 
             @Override
             public void keyPressed(KeyEvent e) {
-                gameInstance.handleKeyPress(e.getKeyCode());
+                if (gameInstance != null) {
+                    gameInstance.handleKeyPress(e.getKeyCode());
+                }
             }
 
             @Override
@@ -185,9 +173,8 @@ public class StartGame {
             }
         });
 
-        // Start animator
+        // Animator created here, but started/stopped in launchGame
         animator = new FPSAnimator(glPanel, 60);
-        animator.start();
 
         panel.add(glPanel, BorderLayout.CENTER);
         return panel;
@@ -232,14 +219,43 @@ public class StartGame {
         return button;
     }
 
-    private static void launchGame() {
-        // Switch to game screen
+    /**
+     * Launches the game. If multiplayer == true -> split-screen.
+     */
+    private static void launchGame(boolean multiplayer) {
+        // Remove any previous listeners from glPanel
+        if (gameInstance != null) {
+            glPanel.removeGLEventListener(gameInstance);
+        }
+
+        // Create new game instance with requested mode
+        gameInstance = new Game(multiplayer);
+
+        // Setup singleplayer end-game callback to show END_GAME card
+        gameInstance.setGameStateListener(() -> {
+            // create EndGame screen with current game instance and show it
+            SwingUtilities.invokeLater(() -> {
+                // If an EndGame exists, remove previous card (so we can create a fresh one)
+                if (endGameScreen != null) {
+                    cardPanel.remove(endGameScreen.getPanel());
+                }
+                endGameScreen = new EndGame(cardLayout, cardPanel, gameInstance);
+                cardPanel.add(endGameScreen.getPanel(), "END_GAME");
+                cardLayout.show(cardPanel, "END_GAME");
+            });
+        });
+
+        // Add as GLEventListener and start animator
+        glPanel.addGLEventListener(gameInstance);
+        if (!animator.isAnimating()) animator.start();
+
+        // Show game card and focus
         cardLayout.show(cardPanel, "GAME");
         glPanel.requestFocusInWindow();
     }
 
     /**
-     * Custom panel that renders the starfield background with gradient
+     * Custom panel that renders the starfield background with gradient for menus.
      */
     private static class BackgroundPanel extends JPanel {
         private long startTime = System.currentTimeMillis();
@@ -247,39 +263,34 @@ public class StartGame {
         @Override
         protected void paintComponent(Graphics g) {
             super.paintComponent(g);
-            
+
             Graphics2D g2d = (Graphics2D) g;
             g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-            
-            // Draw gradient background
+
             java.awt.GradientPaint gradient = new java.awt.GradientPaint(
                     0, 0, new Color(0x0A0A1A),
                     0, getHeight(), new Color(0x1E1E2E)
             );
             g2d.setPaint(gradient);
             g2d.fillRect(0, 0, getWidth(), getHeight());
-            
-            // Draw stars with twinkling effect
+
             java.util.Random random = new java.util.Random(42);
             int starCount = 200;
             long elapsed = System.currentTimeMillis() - startTime;
-            
+
             for (int i = 0; i < starCount; i++) {
                 int x = random.nextInt(getWidth());
                 int y = random.nextInt(getHeight());
-                
-                // Twinkling effect based on time and star index
+
                 float twinkle = (float) Math.sin((elapsed + i * 100) / 500.0f);
                 float brightness = 0.3f + (0.7f * (twinkle + 1) / 2);
                 brightness = Math.min(1.0f, brightness);
-                
-                // Draw star with varying size based on brightness
+
                 int size = brightness > 0.7f ? 3 : 2;
                 g2d.setColor(new Color(brightness, brightness, brightness * 0.9f));
                 g2d.fillOval(x, y, size, size);
             }
-            
-            // Draw subtle glow effect
+
             g2d.setColor(new Color(0, 100, 200, 10));
             for (int i = 0; i < 3; i++) {
                 g2d.drawRect(0, 0, getWidth() - 1, getHeight() - 1);
